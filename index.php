@@ -49,17 +49,17 @@ function pageContentArea() {
                 </div>
 	        </div>
 	        <div class='col-md-4' style='padding: 0px;'>
+	            <div class='panel panel-default text-center'>
+                    <div id='canvas-holder' style='width: 200px;height:200px;margin:auto;'><canvas id='disk_capacity' /></div>
+                </div>
 	            <div class='panel panel-default'>
                   <div class='panel-heading'>Server Stats <i class='fa fa-refresh pull-right reload_server_stats'></i></div>
-                  <div class='panel-body' style='padding: 2px;height: 95%;overflow: auto;'>
+                  <div class='panel-body' style='padding: 2px;height: 60%;overflow: auto;'>
                     <table class='table' style='margin-bottom: 0px;'>
                         <tbody id='server_stats'>
                         </tbody>
                     </table>
                   </div>
-                </div>
-                <div class='panel panel-default'>
-                    <div id='canvas-holder'><canvas id='chart1' /></div>
                 </div>
 	        </div>
 	    </div>
@@ -121,6 +121,7 @@ window.chartColors = {
 };
 var script_running = false;
 var server_connected = false;
+var server_stats = {};
 $(function() {
     $(".script-list").delegate("li[data-src]", "click", function() {
         $(".script-list li.active").removeClass("active");
@@ -174,8 +175,8 @@ function loadServerStats() {
             $.each(data.Data, function(k, v) {
                 $("#server_stats").append(`<tr><th style='text-transform: uppercase;'>${k}</th><td align=left>${v}</td></tr>`);
             });
-            
-            // renderCharts();
+            server_stats = data.Data
+            renderCharts();
         }
     }, "json");
 }
@@ -224,7 +225,62 @@ function runControlScript(src) {
 function clearOutput() {
     $(".output_results>pre").html("");
 }
+
 function renderCharts() {
+    renderChartDiskCapacity()
+}
+
+function renderChartDiskCapacity() {
+    if(server_stats.DISK_CAPACITY==null) {
+        $("#disk_capacity").closest(".panel").hide();
+        return;
+    }
+    var v1 = parseInt(server_stats.DISK_CAPACITY);
+    
+    var data1 = {
+            labels: [
+                "Used Disk",
+                "Available Disk",
+                //"Not-Available",
+            ],
+            datasets: [{
+                data: [
+                    v1,
+                    (100-v1),
+                ],
+                //borderColor: window.chartColors.red,
+                backgroundColor: [
+                    window.chartColors.red,
+                    window.chartColors.orange,
+                    window.chartColors.yellow,
+                    window.chartColors.green,
+                    window.chartColors.blue,
+                ],
+                fill: false,
+                label: 'Disk Capacity'
+            }],
+        };
+        
+    var ctx = document.getElementById("disk_capacity").getContext("2d");
+    window.myPie = new Chart(ctx, {
+        type: 'pie',
+        data: data1,
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true
+                },
+                legend: {
+                    display: true,
+                    position: 'right'
+                }
+            }
+        }
+    });
+}
+
+function renderChartsOld() {
     var data1 = {
             labels: [
                 "Red",
@@ -266,24 +322,24 @@ function renderCharts() {
         }
     });
     
-    // var ctx = document.getElementById("chart2").getContext("2d");
-    // window.myPie = new Chart(ctx, {
-    //     type: 'bar',
-    //     data: data1,
-    //     options: {
-    //         responsive: true,
-    //         legend: false
-    //     }
-    // });
+    var ctx = document.getElementById("chart2").getContext("2d");
+    window.myPie = new Chart(ctx, {
+        type: 'bar',
+        data: data1,
+        options: {
+            responsive: true,
+            legend: false
+        }
+    });
     
-    // var ctx = document.getElementById("chart3").getContext("2d");
-    // window.myPie = new Chart(ctx, {
-    //     type: 'line',
-    //     data: data1,
-    //     options: {
-    //         responsive: true,
-    //         legend: false
-    //     }
-    // });
+    var ctx = document.getElementById("chart3").getContext("2d");
+    window.myPie = new Chart(ctx, {
+        type: 'line',
+        data: data1,
+        options: {
+            responsive: true,
+            legend: false
+        }
+    });
 }
 </script>
