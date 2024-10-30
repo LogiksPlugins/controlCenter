@@ -34,7 +34,7 @@ if(!function_exists("loadNodeEnvironment")) {
             ];
         
         $finalsList = [];
-        foreach($scriptDirs as $scriptDir) {
+        foreach($scriptDirs as $grp=>$scriptDir) {
             if(file_exists($scriptDir) && is_dir($scriptDir)) {
                 $fs = scandir($scriptDir);
                 array_shift($fs);array_shift($fs);
@@ -43,7 +43,11 @@ if(!function_exists("loadNodeEnvironment")) {
                     $fName = explode("/", $f);
                     $fName = end($fName);
                     
-                    $finalsList[$fName] = $scriptDir.$f;
+                    $finalsList[$fName] = [
+                            "file"=>$scriptDir.$f,
+                            "group"=>$grp,
+                            "editable"=>($grp!="root")
+                        ];
                 }
             }
         }
@@ -118,7 +122,7 @@ if(!function_exists("loadNodeEnvironment")) {
         }
         
         $data['path'] = $path;
-        $data['src'] = str_replace(ROOT, "", $scriptList[$script]);
+        $data['src'] = str_replace(ROOT, "", $scriptList[$script]['file']);
         //printArray($scriptList);printArray($data);exit();
         
         $url = "http://localhost:{$_SESSION['NODE_PORT']}/run";

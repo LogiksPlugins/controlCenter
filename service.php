@@ -6,7 +6,16 @@ include_once __DIR__."/api.php";
 handleActionMethodCalls();
 
 function _service_list_scripts() {
-    return array_keys(getScriptList(true));
+    $finalList = [];
+    $tempList = getScriptList(true);
+    
+    foreach($tempList as $k=>$v) {
+        $finalList[$k] = [
+                "group"=>$v['group'],
+                "editable"=>$v['editable']
+            ];
+    }
+    return $finalList;
 }
 
 function _service_test() {
@@ -50,5 +59,56 @@ function _service_run_script() {
     $result = runNodeScript($_POST['src'], $_POST, CMS_APPROOT);
     
     echo $result;
+}
+function _service_view_script() {
+    if(!isset($_REQUEST['src']) && strlen($_REQUEST['src'])>0) {
+        echo "Script Source Not Defined";
+        exit();
+    }
+    $scriptList = getScriptList();
+    if(!in_array($_REQUEST['src'], array_keys($scriptList))) {
+        echo "Script Source Not Found";
+        exit();
+    }
+    
+    $script = $_REQUEST['src'];
+    
+    if($scriptList[$script]['group']=="root") {
+        if($_SESSION['SESS_PRIVILEGE_NAME']=="root") {
+            echo "<pre>";
+            readfile($scriptList[$script]['file']);
+            echo "</pre>";
+        } else {
+            echo "Root Scripts can not be viewed here";
+        }
+    } elseif(file_exists($scriptList[$script]['file'])) {
+        echo "<pre>";
+        readfile($scriptList[$script]['file']);
+        echo "</pre>";
+    } else {
+        echo "Script Not Found";
+    }
+}
+
+function _service_edit_script() {
+    if(!isset($_REQUEST['src']) && strlen($_REQUEST['src'])>0) {
+        echo "Script Source Not Defined";
+        exit();
+    }
+    $scriptList = getScriptList();
+    if(!in_array($_REQUEST['src'], array_keys($scriptList))) {
+        echo "Script Source Not Found";
+        exit();
+    }
+    
+    $script = $_REQUEST['src'];
+    
+    if($scriptList[$script]['group']=="root") {
+        echo "Not allowed to save script for root group";
+    } else {
+        $file = str_replace(CMS_APPROOT, "", $scriptList[$script]['file']);
+        $lx = _link("modules/cmsEditor")."&type=edit&src={$file}";
+        header("Location:$lx");
+    }
 }
 ?>

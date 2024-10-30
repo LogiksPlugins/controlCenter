@@ -11,7 +11,15 @@ printPageComponent(false,[
 		    "refreshPage"=>["icon"=>"<i class='fa fa-refresh'></i>"],
 		    ['type'=>"bar"],
 		    
-		    "clearOutput"=>["icon"=>"<i class='fa fa-trash'></i>"],
+		    "clearOutput"=>["icon"=>"<i class='fa fa-broom'></i>"],
+		    ['type'=>"bar"],
+		    
+		    "viewScript"=>["icon"=>"<i class='fa fa-code'></i>", "title"=>"Script", "class"=>"on_script hidden"],
+		    "editScript"=>["icon"=>"<i class='fa fa-pencil'></i>", "title"=>"Edit", "class"=>"on_script on_editor hidden"],
+		    
+		    "runScript"=>["icon"=>"<i class='fa fa-play'></i>", "title"=>"Run", "class"=>"on_script hidden"],
+		    
+		    
 		    //"loadServerStats"=>["icon"=>"<i class='fa fa-tachometer-alt'></i>"],
 		    //['type'=>"bar"],
 		    "restartNodeServer"=>["icon"=>"<i class='fa fa-redo'></i>", "title"=> "Restart", "tips"=>"Restart Node Server", "align"=>"right"],
@@ -23,7 +31,7 @@ printPageComponent(false,[
 
 			
 			
-			// "newCard"=>["icon"=>"<i class='fa fa-plus'></i>"],
+			// 
 			// "trash"=>["icon"=>"<i class='fa fa-trash'></i>"],
 		],
 		"sidebar"=> "pageSidebar",
@@ -40,7 +48,7 @@ function pageSidebar() {
 function pageContentArea() {
 	return "<div class='container-fluid container-card' style='height: 100%;'>
 	    <div class='row' style='height:100%;'>
-	        <div class='col-md-8'>
+	        <div class='col-md-8' style='padding: 0px 5px;'>
 	            <div class='panel panel-default'>
                   <div class='panel-heading hide hidden d-none'>Output Results</div>
                   <div class='panel-body output_results'>
@@ -49,8 +57,17 @@ function pageContentArea() {
                 </div>
 	        </div>
 	        <div class='col-md-4' style='padding: 0px;'>
-	            <div class='panel panel-default text-center'>
-                    <div id='canvas-holder' style='width: 200px;height:200px;margin:auto;'><canvas id='disk_capacity' /></div>
+	            <div class='panel panel-default text-center' style='padding-top:10px;'>
+                    <div id='canvas-holder' style='width: 120px;height:120px;margin:auto;margin-top:5px;display: inline-block;margin: 0px 20px;'>
+                        <canvas id='disk_capacity'></canvas>
+                        <h5 style='margin: 0px;display: inline-block;'>Disk Usage</h5>
+                    </div>
+                    <div id='canvas-holder2' style='width: 120px;height:120px;margin:auto;margin-top:5px;display: inline-block;margin: 0px 20px;'>
+                        <canvas id='ram_usage'></canvas>
+                        <h5 style='margin: 0px;display: inline-block;'>RAM Usage</h5>
+                    </div>
+                </div>
+                <div class='panel panel-default text-center'>
                 </div>
 	            <div class='panel panel-default'>
                   <div class='panel-heading'>Server Stats <i class='fa fa-refresh pull-right reload_server_stats'></i></div>
@@ -67,46 +84,24 @@ function pageContentArea() {
 }
 ?>
 <style>
-.pageCompContainer.withSidebar .pageCompContent {
-    overflow: hidden;
+.list-group-item label {
+    font-size: 12px !important;
 }
-.container-card {
-    padding-left: 10px;
-    padding-right: 10px;
+.list-group-item span.label {
+    font-size: 8px !important;
+    float: right;
+    padding: 0.2em 0.4em 0.3em;
 }
-.script-list li {
-    cursor: pointer;
+.list-group-item input[type=radio], .list-group-item input[type=checkbox] {
+    float: left;
+    margin-right: 3px;
+    margin-top: 2px;
 }
-.card {
-    
-}
-.output_results {
-    padding: 2px;
+.code_text {
+    width:100%;height:50%;min-height:400px;
     background: black;
     color: white;
-    height: 100%;
-    overflow:auto;
-}
-.output_results pre {
     padding: 2px;
-    background: transparent;
-    border: 0px;
-    color: white;
-}
-.output_results pre hr {
-    margin: 2px;
-    padding: 0px;
-    height: 0px;
-    opacity: 0.4;
-}
-#server_stats td {
-    word-break: break-all;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    -webkit-hyphens: auto;
-    -moz-hyphens: auto;
-    -ms-hyphens: auto;
-    hyphens: auto;
 }
 </style>
 <script>
@@ -123,11 +118,28 @@ var script_running = false;
 var server_connected = false;
 var server_stats = {};
 $(function() {
-    $(".script-list").delegate("li[data-src]", "click", function() {
+    $(".script-list").delegate("input[type=radio]", "change", function() {
+        if($(".script-list input:checked").length>0) {
+            $(".on_script").removeClass("hidden");
+        } else {
+            $(".on_script").addClass("hidden");
+        }
+        if($(".script-list input:checked").data("group")=="root") {
+            $(".on_editor").addClass("hidden");
+        }
+        
         $(".script-list li.active").removeClass("active");
-        $(this).addClass("active");
-        var src = $(this).data("src");
-        runControlScript(src, this);
+        $(this).closest("li").addClass("active");
+    });
+    $("body").delegate(".save_script_source", "click", function() {
+        saveScript();
+    })
+        
+    $(".script-list").delegate("li[data-src]", "click", function() {
+        // $(".script-list li.active").removeClass("active");
+        // $(this).addClass("active");
+        // var src = $(this).data("src");
+        // runControlScript(src, this);
     })
     
     $(".reload_server_stats").click(loadServerStats);
@@ -137,7 +149,51 @@ $(function() {
 function refreshPage() {
     window.location.reload();
 }
-
+function runScript(btn) {
+    var src = $(".script-list input:checked").data("src");
+    if(src==null) {
+        lgksToast("Script not selected");
+        return;
+    }
+    runControlScript(src, btn);
+}
+function viewScript() {
+    var src = $(".script-list input:checked").data("src");
+    if(src==null) {
+        lgksToast("Script not selected");
+        return;
+    }
+    lgksOverlayURL(_service("controlCenter", "view_script")+"&src="+src, "View Script", function() {
+        
+    }, {});
+}
+function editScript() {
+    var src = $(".script-list input:checked").data("src");
+    if(src==null) {
+        lgksToast("Script not selected");
+        return;
+    }
+    parent.openLinkFrame("Script-"+src, _service("controlCenter", "edit_script")+"&src="+src, true);
+}
+function saveScript() {
+    var srcData = $("#script_source").val();
+    var script = $("#script_source").data("src");
+    
+    processAJAXPostQuery(_service("controlCenter", "save_script"), `src=${script}&text=`+srcData, function(data) {
+        lgksToast(data);
+    });
+}
+function deleteScript() {
+    var src = $(".script-list input:checked").data("src");
+    if(src==null) {
+        lgksToast("Script not selected");
+        return;
+    }
+    
+}
+function createScript() {
+    
+}
 function runConnectionTest() {
     server_connected = false;
     $(".output_results>pre").html("Connecting To Server ...");
@@ -185,12 +241,19 @@ function loadScriptList() {
     $("#script-list").html("<div class='ajaxloading ajaxloading3'></div>");
     processAJAXQuery(_service("controlCenter", "list_scripts"), function(data) {
         $("#script-list").html("");
-        $.each(data.Data, function(k, scrpt) {
-            var title= toTitle(scrpt);
+        $.each(data.Data, function(scrpt, info) {
+            var lbl = ".";
+            if(scrpt.indexOf(".sh")>0) lbl = "SH";
+            else if(scrpt.indexOf(".js")>0) lbl = "JS";
+            
+            var title= (scrpt.replace(/_/g,' ').replace('.sh', '').replace('.js', '')).toUpperCase();
+            var clz = "info";
+            if(info.group=="root") clz = "danger";
+            
             if(server_connected)
-                $("#script-list").append(`<li data-src='${scrpt}' class='list-group-item'>${title}</li>`);
+                $("#script-list").append(`<li data-src='${scrpt}' class='list-group-item'><label><input data-src='${scrpt}' data-group='${info.group}' type='radio' name='scriptSelector' /> ${title}</label> <span class='label label-${clz}'>${lbl}</span></li>`);
             else
-                $("#script-list").append(`<li data-src='${scrpt}' class='list-group-item disabled'>${title}</li>`);
+                $("#script-list").append(`<li data-src='${scrpt}' class='list-group-item disabled'>${title} <span class='label label-${clz}'>${lbl}</span></li>`);
         });
     }, "json");
 }
@@ -227,7 +290,8 @@ function clearOutput() {
 }
 
 function renderCharts() {
-    renderChartDiskCapacity()
+    renderChartDiskCapacity();
+    renderChartRamUsage();
 }
 
 function renderChartDiskCapacity() {
@@ -251,10 +315,10 @@ function renderChartDiskCapacity() {
                 //borderColor: window.chartColors.red,
                 backgroundColor: [
                     window.chartColors.red,
-                    window.chartColors.orange,
-                    window.chartColors.yellow,
                     window.chartColors.green,
                     window.chartColors.blue,
+                    window.chartColors.orange,
+                    window.chartColors.yellow,
                 ],
                 fill: false,
                 label: 'Disk Capacity'
@@ -263,17 +327,65 @@ function renderChartDiskCapacity() {
         
     var ctx = document.getElementById("disk_capacity").getContext("2d");
     window.myPie = new Chart(ctx, {
-        type: 'pie',
+        type: 'doughnut',
         data: data1,
         options: {
             responsive: true,
             plugins: {
-                title: {
-                    display: true
-                },
                 legend: {
-                    display: true,
-                    position: 'right'
+                    display: false,
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function renderChartRamUsage() {
+    if(server_stats.MEM_TOTAL==null) {
+        $("#ram_usage").closest(".panel").hide();
+        return;
+    }
+    var v1 = parseInt(server_stats.MEM_TOTAL);
+    var v2 = parseInt(server_stats.MEM_FREE);
+    var v3 = parseInt(server_stats.MEM_PROCESS);
+    
+    var data1 = {
+            labels: [
+                "Free RAM",
+                // "Process RAM",
+                "Used RAM",
+                //"Not-Available",
+            ],
+            datasets: [{
+                data: [
+                    v2,
+                    // v3,
+                    (v1-v2),
+                ],
+                //borderColor: window.chartColors.red,
+                backgroundColor: [
+                    //window.chartColors.red,
+                    //window.chartColors.green,
+                    // window.chartColors.yellow,
+                    window.chartColors.purple,
+                    window.chartColors.grey,
+                ],
+                fill: false,
+                label: 'RAM Usage'
+            }],
+        };
+        
+    var ctx = document.getElementById("ram_usage").getContext("2d");
+    window.myPie = new Chart(ctx, {
+        type: 'doughnut',
+        data: data1,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false,
+                    position: 'bottom'
                 }
             }
         }
@@ -312,7 +424,7 @@ function renderChartsOld() {
     
     var ctx = document.getElementById("chart1").getContext("2d");
     window.myPie = new Chart(ctx, {
-        type: 'pie',
+        type: 'doughnut',
         data: data1,
         options: {
             responsive: true,
